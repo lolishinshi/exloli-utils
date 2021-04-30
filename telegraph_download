@@ -1,0 +1,74 @@
+#!/usr/bin/zsh
+# 通过 telegraph 链接从频道下载本子
+
+setopt no_unset warn_create_global err_exit pipe_fail
+
+zmodload zsh/zutil
+
+local -A format proc
+zparseopts -D -E f:=format p:=proc
+
+if (( $# != 1 )); then
+  cat <<EOF
+Download gallery from telegraph.
+
+Usage: $0 URL [OPTIONS..]
+
+Options:
+  -f FORMAT  Output format, can be pdf, epub
+  -p PROC    Max process of download
+EOF
+  return 1
+fi
+
+check_requirements() {
+  if ! (( $+commands[curl] && $+commands[jq] )); then
+    print "Please install curl and jq" && return 1
+  else if [[ -n $format ]] && (( ! $+commands[convert] )); then
+    print "Please install imagemagick"
+  else if [[ $format == epub ]] && (( ! $+commands[ebook-convert] )); then
+    print "Please install calibre" && return 1
+  fi
+}
+
+add_index() {
+  local line idx=0
+  while IFS= read -r line; do
+    (( idx += 1 ))
+    echo $idx $line
+  done
+}
+
+urldecode() {
+  echo -e ${1//'%'/\\x}
+}
+
+# download_image PAGE_PATH
+download_image() {
+  mkdir -p $1
+  curl -s "https://api.telegra.ph/getPage/${1}?return_content=true" \
+    | jq --raw-output '.result.content[] | select(.attrs.src != null) | .attrs.src' \
+    | add_index \
+    | xargs -P ${proc:-4} -I {} zsh -c "v=({}); echo Downloading \$v[1].jpg; curl -s https://telegra.ph\$v[2] -o ${1}/\${v[1]}.jpg"
+}
+
+# convert_format PATH
+convert_format() {
+  case $format in;
+    pdf|epub)
+      echo "Converting to PDF..."
+      convert $1/*(n) $1.pdf
+      ;&
+    epub)
+      echo "Converting to EPUB..."
+      ebook-convert $1.pdf $1.epub >/dev/null
+      rm -f $1.pdf
+      ;;
+  esac
+}
+
+local path_path=$(urldecode ${${1#https://telegra.ph/}%\?*})
+
+check_requirements
+download_image $path_path
+convert_format $path_path
