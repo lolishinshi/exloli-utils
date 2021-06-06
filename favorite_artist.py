@@ -21,19 +21,26 @@ def escape(string: str) -> str:
 
 
 # https://www.jianshu.com/p/4d2b45918958
-def wilson_score_norm(mean: float, var: float, total: int, p_z=1.281):
+def wilson_score_norm(mean, var, total, p_z=2.):
     # 均值方差需要归一化，以符合正态分布的分位数
-    score = (
-        mean
-        + (np.square(p_z) / (2.0 * total))
-        - ((p_z / (2.0 * total)) * np.sqrt(4.0 * total * var + np.square(p_z)))
-    ) / (1 + np.square(p_z) / total)
+    score = (mean + (np.square(p_z) / (2. * total))
+             - ((p_z / (2. * total)) * np.sqrt(4. * total * var + np.square(p_z)))) / \
+            (1 + np.square(p_z) / total)
     return score
 
+def calc_score(arr, p_z=1.281):
+    max = 5.  # 五星评价的最大值
+    min = 1.  # 五星评价的最小值
+    arr = sum(([i + 1] * arr[i] for i in range(5)), [])
+    #if len(arr) >= 10:
+    #    del arr[0], arr[-1]
+    values = np.array(arr)  # 示例
 
-def calc_score(scores: List[float]) -> float:
-    arr = np.array(scores)
-    return wilson_score_norm(np.mean(arr), np.var(arr), arr.size, 1.281)
+    norm_values = (values - min) / (max - min)  # 归一化
+    total = norm_values.size  # 总数
+    mean = np.mean(norm_values)  # 归一化后的均值
+    var = np.var(norm_values)  # 归一化后的方差
+    return wilson_score_norm(mean, var, total, p_z)
 
 
 def get_artist(tags: List[Tuple[str, List[str]]]) -> Generator[str, None, None]:
@@ -48,22 +55,21 @@ def get_artist(tags: List[Tuple[str, List[str]]]) -> Generator[str, None, None]:
 
 
 def main():
-    artists = defaultdict(lambda: [])
-    for row in C.execute("SELECT message_id, score, tags FROM gallery WHERE score > 0"):
-        mid, score, tags = row
+    artists = defaultdict(lambda: np.array([0, 0, 0, 0, 0]))
+    for row in C.execute("SELECT message_id, votes, tags FROM gallery WHERE score > 0"):
+        mid, votes, tags = row
         if tags == "":
             print(f"Error: {mid}")
             continue
 
         for artist in get_artist(json.loads(tags)):
-            artists[artist].append(score)
+            artists[artist] += np.array(json.loads(votes))
 
     artists = [[artist, calc_score(score)] for artist, score in artists.items()]
     artists.sort(key=lambda x: -x[1])
-    mscore = artists[0][1]
     for idx, (artist, score) in enumerate(artists[:20]):
         print(
-            f"`{idx+1:<2}  {score / mscore * 100:<6.1f}`  #{translate(artist)} #{escape(artist)}"
+            f"`{idx+1:<2}  {score * 100:<6.1f}`  #{translate(artist)} #{escape(artist)}"
         )
 
 
