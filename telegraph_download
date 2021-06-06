@@ -25,7 +25,7 @@ check_requirements() {
   if ! (( $+commands[curl] && $+commands[jq] )); then
     print "Please install curl and jq" && return 1
   else if [[ -n $format ]] && (( ! $+commands[convert] )); then
-    print "Please install imagemagick"
+    print "Please install imagemagick" && return 1
   else if [[ $format == epub ]] && (( ! $+commands[ebook-convert] )); then
     print "Please install calibre" && return 1
   fi
