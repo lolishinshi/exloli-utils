@@ -10,7 +10,7 @@ C = CONN.cursor()
 
 def translate(string: str, __d={}):
     if __d == {}:
-        for data in json.load(open("../db.text.json"))["data"]:
+        for data in json.load(open("./db.text.json"))["data"]:
             if data["namespace"] == "artist":
                 __d = data["data"]
     return __d.get(string.split(" | ")[0], {}).get("name", string)
@@ -28,7 +28,7 @@ def wilson_score_norm(mean, var, total, p_z=2.):
             (1 + np.square(p_z) / total)
     return score
 
-def calc_score(arr, p_z=1.281):
+def calc_score(arr, p_z=3.090):
     max = 5.  # 五星评价的最大值
     min = 1.  # 五星评价的最小值
     arr = sum(([i + 1] * arr[i] for i in range(5)), [])
