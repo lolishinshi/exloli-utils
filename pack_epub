@@ -1,0 +1,10 @@
+#!/usr/bin/zsh
+# 打包文件夹内的图片为 epub
+
+
+local -a files=($1/*(n:a))
+printf '![](%s)' $files > /tmp/$1.txt
+ebook-convert /tmp/$1.txt $1.epub \
+  --output-profile=generic_eink_hd \
+  --title=$1 --cover=$files[1]
+rm /tmp/$1.txt

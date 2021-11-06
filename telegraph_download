@@ -49,20 +49,25 @@ download_image() {
   curl -s "https://api.telegra.ph/getPage/${1}?return_content=true" \
     | jq --raw-output '.result.content[] | select(.attrs.src != null) | .attrs.src' \
     | add_index \
-    | xargs -P ${proc:-4} -I {} zsh -c "v=({}); echo Downloading \$v[1].jpg; curl -s https://telegra.ph\$v[2] -o ${1}/\${v[1]}.jpg"
+    | xargs -P ${proc:-4} -I {} zsh -c "v=({}); echo Downloading \$v[1].jpg; wget -c -q https://telegra.ph\$v[2] -O ${1}/\${v[1]}.jpg"
 }
 
 # convert_format PATH
 convert_format() {
   case $format in;
-    pdf|epub)
+    pdf)
       echo "Converting to PDF..."
       convert $1/*(n) $1.pdf
       ;&
     epub)
       echo "Converting to EPUB..."
-      ebook-convert $1.pdf $1.epub >/dev/null
-      rm -f $1.pdf
+      local -a files=($1/*(n:a))
+      printf '![](%s)' $files > /tmp/$1.txt
+      ebook-convert /tmp/$1.txt $1.epub \
+        --output-profile=generic_eink_hd \
+        --title=$1 --cover=$files[1] \
+        >/dev/null
+      rm /tmp/$1.txt
       ;;
   esac
 }
